@@ -99,3 +99,7 @@ class AddTask(Resource):
         db.session.commit()
 
         return {"message": "Task added successfully"}, 201
+
+class UpdateTask(Resource):
+    def post(self):
+        pass
