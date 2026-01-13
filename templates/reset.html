@@ -1,0 +1,25 @@
+<h2>Reset Password</h2>
+
+<form id="resetForm">
+<input type="password" id="password" placeholder="New Password" required>
+<br><br>
+<button>Reset</button>
+</form>
+
+<p id="msg"></p>
+
+<script>
+let token = window.location.pathname.split("/").pop();
+
+resetForm.onsubmit = async(e)=>{
+e.preventDefault();
+
+let r = await fetch(`/reset-password/${token}`,{
+method:"POST",
+body:new URLSearchParams({password:password.value})
+});
+
+let d = await r.json();
+msg.innerText = d.message;
+}
+</script>

@@ -96,9 +96,13 @@ class Register(Resource):
 
 
 class Login(Resource):
-    def get(self):
-        username = request.args.get("username")
-        password = request.args.get("password")
+    def post(self):
+        # username = request.args.get("username")
+        # password = request.args.get("password")
+
+        username = request.form.get("username") or request.args.get("username")
+        password = request.form.get("password") or request.args.get("password")
+
 
         if not username or not password:
             return {"message": "username and password are required"}, 400
@@ -191,7 +195,7 @@ class UpdateTask(Resource):
         task = Task.query.get(task_id)
 
         if not task:
-            return {"mesage": "Task not found"}, 404
+            return {"message": "Task not found"}, 404
         
         title = data.get("title")
         description = data.get("description")
@@ -227,3 +231,48 @@ class DeleteTask(Resource):
         },200
 
 
+class ForgotPassword(Resource):
+    def post(self):
+        email = request.form.get("email")
+
+        if not email:
+            return {"message": "Email is required"}, 400
+
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            return {"message": "Email not found"}, 404
+
+        token = secrets.token_urlsafe(32)
+
+        user.reset_token = token
+        user.token_expiry = datetime.utcnow() + timedelta(minutes=15)
+        db.session.commit()
+
+        return {
+            "message": "Password reset link generated",
+            "reset_link": f"http://127.0.0.1:5000/reset/{token}"
+        }, 200
+
+
+class ResetPassword(Resource):
+    def post(self, token):
+        data = request.form
+        new_password = data.get("password")
+
+        if not new_password:
+            return {"message": "Password is required"}, 400
+
+        user = User.query.filter_by(reset_token=token).first()
+        
+        if not user:
+            return {"message": "Invalid token"}, 400
+
+        if user.token_expiry < datetime.utcnow():
+            return {"message": "Token has expired"}, 400
+
+        user.password_hash = pbkdf2_sha256.hash(new_password)
+        user.reset_token = None
+        user.token_expiry = None
+        db.session.commit()
+
+        return {"message": "Password reset successfully"}, 200

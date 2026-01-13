@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Register</title>
+</head>
+<body>
+
+<h2>Register</h2>
+
+<form id="registerForm" enctype="multipart/form-data">
+    Username:<br>
+    <input type="text" name="username" required><br><br>
+
+    Email:<br>
+    <input type="email" name="email" required><br><br>
+
+    Password:<br>
+    <input type="password" name="password" required><br><br>
+
+    Profile Image:<br>
+    <input type="file" name="image"><br><br>
+
+    <button type="submit">Register</button>
+</form>
+
+<p id="msg"></p>
+
+<a href="/login-page">Already have account? Login</a>
+
+<script>
+document.getElementById("registerForm").onsubmit = async function(e){
+    e.preventDefault();
+
+    let formData = new FormData(this);
+
+    let res = await fetch("/register", {
+        method: "POST",
+        body: formData
+    });
+
+    let data = await res.json();
+    document.getElementById("msg").innerText = data.message;
+}
+</script>
+
+</body>
+</html>

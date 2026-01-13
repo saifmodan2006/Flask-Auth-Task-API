@@ -1,0 +1,23 @@
+<h2>Forgot Password</h2>
+
+<form id="forgotForm">
+<input type="email" id="email" placeholder="Enter your email" required>
+<br><br>
+<button>Send Reset Link</button>
+</form>
+
+<p id="msg"></p>
+
+<script>
+forgotForm.onsubmit = async (e)=>{
+e.preventDefault();
+
+let r = await fetch("/forgot-password",{
+method:"POST",
+body:new URLSearchParams({email:email.value})
+});
+
+let d = await r.json();
+msg.innerText = d.reset_link || d.message;
+}
+</script>
