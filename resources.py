@@ -13,6 +13,15 @@ from flask import current_app
 from functools import wraps
 from models import User
 
+from marshmallow import ValidationError
+from .schemas import (
+    RegisterSchema,
+    LoginSchema,
+    ForgotPasswordSchema,
+    ResetPasswordSchema
+)
+
+
 # --- PASTE THIS FUNCTION ABOVE YOUR CLASSES ---
 def token_required(f):
     @wraps(f)
@@ -48,33 +57,27 @@ def generate_filename(original_filename):
     ext = os.path.splitext(original_filename)[1]
     return f"pr_{random_part}{ext}"
 
-
 class Register(Resource):
     def post(self):
-        args = request.form
+        try:
+            data = RegisterSchema().load(request.form)
+        except ValidationError as err:
+            return {"errors": err.messages}, 400
+
         img = request.files.get("image")
 
-        username = args.get("username")
-        email = args.get("email")
-        password = args.get("password")
-
-        if not username or not email or not password:
-            return {"message": "All fields are required"}, 400
-
-        if User.query.filter_by(username=username).first():
-            return {"message": "username already exists"}, 409
+        if User.query.filter_by(username=data["username"]).first():
+            return {"message": "Username already exists"}, 409
 
         filename = None
         if img:
             filename = generate_filename(img.filename)
             img.save(os.path.join(current_app.config["UPLOAD_FOLDER"], filename))
 
-        password_hash = pbkdf2_sha256.hash(password)
-
         user = User(
-            username=username,
-            email=email,
-            password_hash=password_hash,
+            username=data["username"],
+            email=data["email"],
+            password_hash=pbkdf2_sha256.hash(data["password"]),
             profile_image=filename
         )
 
@@ -87,32 +90,23 @@ class Register(Resource):
             algorithm="HS256"
         )
 
-        return {
-            "message": "user created successfully",
-            "username": user.username,
-            "profile_image": filename,
-            "token":token
-        }, 201
+        return {"message": "User registered", "token": token}, 201
 
 
 class Login(Resource):
     def post(self):
-        # username = request.args.get("username")
-        # password = request.args.get("password")
+        try:
+            data = LoginSchema().load(
+                request.form if request.form else request.args
+            )
+        except ValidationError as err:
+            return {"errors": err.messages}, 400
 
-        username = request.form.get("username") or request.args.get("username")
-        password = request.form.get("password") or request.args.get("password")
-
-
-        if not username or not password:
-            return {"message": "username and password are required"}, 400
-
-        user = User.query.filter_by(username=username).first()
-        if not user:
-            return {"message": "User not found"}, 404
-
-        if not pbkdf2_sha256.verify(password, user.password_hash):
-            return {"message": "Invalid credentials"}, 400
+        user = User.query.filter_by(username=data["username"]).first()
+        if not user or not pbkdf2_sha256.verify(
+            data["password"], user.password_hash
+        ):
+            return {"message": "Invalid credentials"}, 401
 
         token = jwt.encode(
             {'user_id': user.id, 'exp': datetime.utcnow() + timedelta(hours=1)},
@@ -121,26 +115,6 @@ class Login(Resource):
         )
 
         return {"token": token}, 200
-
-
-# class AddTask(Resource):
-#     def post(self):
-#         data = request.get_json(force=True)
-
-#         if not data:
-#             return {"message": "JSON data required"}, 400
-
-#         title = data.get("title")
-#         description = data.get("description")
-
-#         if not title:
-#             return {"message": "Task title is required"}, 400
-
-#         task = Task(title=title, description=description)
-#         db.session.add(task)
-#         db.session.commit()
-
-#         return {"message": "Task added successfully"}, 201
 
 
 class AddTask(Resource):
@@ -230,49 +204,42 @@ class DeleteTask(Resource):
             "message" : "Task Deleted Successfully"
         },200
 
-
 class ForgotPassword(Resource):
     def post(self):
-        email = request.form.get("email")
+        try:
+            data = ForgotPasswordSchema().load(request.form)
+        except ValidationError as err:
+            return {"errors": err.messages}, 400
 
-        if not email:
-            return {"message": "Email is required"}, 400
-
-        user = User.query.filter_by(email=email).first()
+        user = User.query.filter_by(email=data["email"]).first()
         if not user:
             return {"message": "Email not found"}, 404
 
         token = secrets.token_urlsafe(32)
-
         user.reset_token = token
         user.token_expiry = datetime.utcnow() + timedelta(minutes=15)
+
         db.session.commit()
 
         return {
-            "message": "Password reset link generated",
+            "message": "Reset link generated",
             "reset_link": f"http://127.0.0.1:5000/reset/{token}"
-        }, 200
-
+        }
 
 class ResetPassword(Resource):
     def post(self, token):
-        data = request.form
-        new_password = data.get("password")
-
-        if not new_password:
-            return {"message": "Password is required"}, 400
+        try:
+            data = ResetPasswordSchema().load(request.form)
+        except ValidationError as err:
+            return {"errors": err.messages}, 400
 
         user = User.query.filter_by(reset_token=token).first()
-        
-        if not user:
-            return {"message": "Invalid token"}, 400
+        if not user or user.token_expiry < datetime.utcnow():
+            return {"message": "Invalid or expired token"}, 400
 
-        if user.token_expiry < datetime.utcnow():
-            return {"message": "Token has expired"}, 400
-
-        user.password_hash = pbkdf2_sha256.hash(new_password)
+        user.password_hash = pbkdf2_sha256.hash(data["password"])
         user.reset_token = None
         user.token_expiry = None
         db.session.commit()
 
-        return {"message": "Password reset successfully"}, 200
+        return {"message": "Password reset successful"}
