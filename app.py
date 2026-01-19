@@ -2,7 +2,9 @@ from flask import Flask
 from flask_restful import Api
 from flask import render_template
 from models import db
-from resources import Register, Login, AddTask , UpdateTask , DeleteTask , TaskList , ResetPassword , ForgotPassword
+# from resources import Register, Login, AddTask , UpdateTask , DeleteTask , TaskList , ResetPassword , ForgotPassword
+
+from resources import Register, Login, AddTask, UpdateTask, DeleteTask, TaskList, ResetPassword, ForgotPassword
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "Millionaire"
@@ -57,6 +59,3 @@ if __name__ == "__main__":
     with app.app_context():
         db.create_all()
     app.run(debug=True)
-
-
-
