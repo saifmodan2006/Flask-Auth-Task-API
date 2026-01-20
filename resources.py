@@ -13,13 +13,17 @@ from flask import current_app
 from functools import wraps
 from models import User
 
+
+from schemas import RegisterSchema, LoginSchema, ForgotPasswordSchema, ResetPasswordSchema
+
+
 from marshmallow import ValidationError
-from .schemas import (
-    RegisterSchema,
-    LoginSchema,
-    ForgotPasswordSchema,
-    ResetPasswordSchema
-)
+# from .schemas import (
+#     RegisterSchema,
+#     LoginSchema,
+#     ForgotPasswordSchema,
+#     ResetPasswordSchema
+# )
 
 
 # --- PASTE THIS FUNCTION ABOVE YOUR CLASSES ---
@@ -56,6 +60,7 @@ def generate_filename(original_filename):
     random_part = ''.join(secrets.choice(chars) for _ in range(8))
     ext = os.path.splitext(original_filename)[1]
     return f"pr_{random_part}{ext}"
+
 
 class Register(Resource):
     def post(self):
